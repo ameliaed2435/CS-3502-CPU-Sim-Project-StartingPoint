@@ -463,6 +463,105 @@ Instructions:
         }
 
         /// <summary>
+        /// SRTF algorithm implementation using DataGrid data
+        /// Preempts current process if a new process arrives w/ a shorter remaining burst time
+        /// </summary>
+        private List<SchedulingResult> RunSRTFAlgorithm(List<ProcessData> processes)
+        {
+            var results = new List<SchedulingResult>();
+
+            //Your algorithm implementation here
+            int currentTime = 0;
+            int completed = 0;
+            int totalProcesses = processes.Count;
+
+            //Tracking the state of processes
+            var remainingBurst = new Dictionary<string, int>();
+            var startTimes = new Dictionary<string, int>();
+            var finishTimes = new Dictionary<string, int>();
+
+            //Access process data via:
+            // - process.ProcessID(String)
+            // - process.BurstTime(int)
+            // - process.Priority(int)
+            // - process.ArrivalTime(int)
+
+            //Initialize dictionaries for tracking
+            foreach(var process in processes)
+            {
+                remainingBurst[process.ProcessID] = process.BurstTime;
+                startTimes[process.ProcessID] = -1; // Indicates not started
+            }
+
+
+            //run CPU simulation
+            while (completed != totalProcesses)
+            {
+                ProcessData shortest = null;
+                int minimumBurst = int.MaxValue;
+
+                //find arrived process w/ shortest remaining time
+                foreach(var process in processes)
+                {
+                    if (process.ArrivalTime <= currentTime && remainingBurst[process.ProcessID] > 0)
+                    {
+                        if (remainingBurst[process.ProcessID] < minimumBurst)
+                        {
+                            minimumBurst = remainingBurst[process.ProcessID];
+                            shortest = process;
+                        }
+                        //if the bursts are equal, pick the first one to arrive, like with FCFS
+                        else if (remainingBurst[process.ProcessID] == minimumBurst && shortest != null && process.ArrivalTime < shortest.ArrivalTime)
+                        {
+                            shortest = process;
+                        }
+                    }
+                }
+
+                //if nothing arrived yet, advance time
+                if (shortest == null)
+                {
+                    currentTime++;
+                    continue;
+                }
+
+                //if the process has the CPU for the first time, record its start time
+                if (startTimes[shortest.ProcessID] == -1)
+                {
+                    startTimes[shortest.ProcessID] = currentTime;
+                }
+
+                //execute for 1 time unit
+                remainingBurst[shortest.ProcessID]--;
+                currentTime++;
+
+                //if process has finished its burst time, increment completed count and record finish time
+                if (remainingBurst[shortest.ProcessID] == 0)
+                {
+                    completed++;
+                    finishTimes[shortest.ProcessID] = currentTime;
+                }
+            }
+
+
+            foreach (var process in processes)
+            {
+                results.Add(new SchedulingResult
+                {
+                    ProcessID = process.ProcessID,
+                    ArrivalTime = process.ArrivalTime,
+                    BurstTime = process.BurstTime,
+                    StartTime = startTimes[process.ProcessID],
+                    FinishTime = finishTimes[process.ProcessID],
+                    WaitingTime = (finishTimes[process.ProcessID] - process.ArrivalTime) - process.BurstTime,
+                    TurnaroundTime = finishTimes[process.ProcessID] - process.ArrivalTime
+                });
+            }
+
+            return results;
+        }
+
+        /// <summary>
         /// STUDENTS: Data structure for algorithm results
         /// Use this to store and display scheduling algorithm outcomes
         /// </summary>
